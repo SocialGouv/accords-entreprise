@@ -52,6 +52,7 @@ ignore = [
     "N806",  # non-lowercase-variable-in-function
     "S301",  # pickle is considered harmful
     "S311",  # standard pseudo-random generators are not suitable for security/cryptographic purposes
+    "Q000",  # bad-quotes-inline-string
 ]
 
 [tool.ruff.per-file-ignores]
