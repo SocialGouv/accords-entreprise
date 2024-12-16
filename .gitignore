@@ -1,0 +1,18 @@
+data/*
+.envrc
+.env
+~*
+
+# Python specific
+*.pyc
+*.pyo
+__pycache__/
+.venv/
+env/
+dist/
+build/
+*.egg-info/
+.coverage*
+*.info
+coverage.json
+.mypy_cache/
