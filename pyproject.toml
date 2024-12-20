@@ -43,7 +43,7 @@ addopts = [
     "--color=yes",
 ]
 
-[tool.ruff]
+[tool.ruff.lint]
 select = ["E", "F", "W", "C", "N", "B", "Q", "S"]
 ignore = [
     "D100",  # missing-module-docstring
@@ -59,7 +59,7 @@ ignore = [
     "Q000",  # bad-quotes-inline-string
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
     "B018",  # B018 - Found useless expression - necessary for testing exceptions are raised.
     "D100",  # D100 - Module dostrings not required in test files.
