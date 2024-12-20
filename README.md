@@ -3,7 +3,9 @@
 ## Alembic
 
 ```bash
+# To update DB schemas
 alembic revision --autogenerate -m "A message"
+# To apply DB schemas
 alembic upgrade head
 ```
 
