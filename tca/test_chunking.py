@@ -28,15 +28,7 @@ session.execute(text("TRUNCATE TABLE document_chunks"))
 session.execute(text("ALTER SEQUENCE document_chunks_id_seq RESTART WITH 1"))
 
 
-class EmbeddingGenerator:
-    def get_embedding(self, text):
-        # Placeholder method to generate embeddings for a given text
-        # In a real scenario, this could call a machine learning model or an API
-        return [0.1, 0.2, 0.3]  # Example embedding
-
-
 document_chunk_manager = DocumentChunkManager(session)
-embedding_generator = EmbeddingGenerator()
 
 DATA_FOLDER = os.getenv("DATA_FOLDER", "data")
 documents_folder = f"{DATA_FOLDER}/accords_entreprise_test"
@@ -45,15 +37,15 @@ document_files = glob.glob(os.path.join(documents_folder, "*.txt"))
 for document_file in document_files:
     with open(document_file, "r") as file:
         document_text = file.read()
+        document_id = hashlib.sha256(document_text.encode()).hexdigest()
         doc_chunks = document_chunk_manager.chunk_document(document_text)
-        for i, chunk in enumerate(doc_chunks):
-            chunk_embedding = embedding_generator.get_embedding(chunk)
-            document_id = hashlib.sha256(document_text.encode()).hexdigest()
+        for i, chunk_text in enumerate(doc_chunks):
+            chunk_embedding = document_chunk_manager.generate_embedding(chunk_text)
             document_chunk_manager.add_document_chunk(
                 document_id=document_id,
                 document_name=os.path.basename(document_file),
-                chunk_text=chunk,
-                embedding=chunk_embedding,
+                chunk_text=chunk_text,
+                chunk_embedding=chunk_embedding,
                 extra_metadata={"chunk_index": i},
             )
 

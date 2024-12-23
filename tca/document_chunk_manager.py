@@ -30,14 +30,14 @@ class DocumentChunkManager:
         document_id: DocumentID,
         document_name: DocumentName,
         chunk_text: ChunkText,
-        embedding: Embedding,
+        chunk_embedding: Embedding,
         extra_metadata: dict,
     ) -> None:
         chunk = DocumentChunk(
             document_id=document_id,
             document_name=document_name,
             chunk_text=chunk_text,
-            embedding=embedding,
+            embedding=chunk_embedding,
             version=1,
             extra_metadata=extra_metadata or {},
             status="UP_TO_DATE",
@@ -70,6 +70,11 @@ class DocumentChunkManager:
             )
 
         return chunks_with_similarity
+
+    def generate_embedding(self, text):
+        # Placeholder method to generate embeddings for a given text
+        # In a real scenario, this could call a machine learning model or an API
+        return [0.1, 0.2, 0.3]  # Example embedding
 
     def chunk_document(self, document_text: DocumentText) -> list[ChunkText]:
         # Example chunking logic: split by paragraphs
