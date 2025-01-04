@@ -24,8 +24,8 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-session.execute(text("TRUNCATE TABLE document_chunks"))
-session.execute(text("ALTER SEQUENCE document_chunks_id_seq RESTART WITH 1"))
+session.execute(text("TRUNCATE TABLE document_chunks_3d"))
+session.execute(text("ALTER SEQUENCE document_chunks_3d_id_seq RESTART WITH 1"))
 
 
 document_chunk_manager = DocumentChunkManager(session)
