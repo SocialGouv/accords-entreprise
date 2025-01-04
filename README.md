@@ -16,6 +16,12 @@ docker-compose up -d
 docker exec -it postgres-pgvector psql -U user -d company_agreements -c "\d"
 ```
 
+## Test it out (temporary while developping)
+
+```bash
+python tca/test_chunking.py
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
