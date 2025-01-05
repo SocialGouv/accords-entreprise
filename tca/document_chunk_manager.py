@@ -126,13 +126,11 @@ class DocumentChunkManager(BaseDocumentChunkManager):
 
         return chunks_with_similarity
 
-    # TODO: Implement
     def generate_embedding(self, text):
         # Placeholder method to generate embeddings for a given text
         # In a real scenario, this could call a machine learning model or an API
         return [0.1, 0.2, 0.3]  # Example embedding
 
-    # TODO: Implement
     def chunk_document(self, document_text: DocumentText) -> list[ChunkText]:
         # Example chunking logic: split by paragraphs
         return [chunk.strip() for chunk in document_text.split("\n\n")]
