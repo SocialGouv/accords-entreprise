@@ -13,8 +13,8 @@ from tca.custom_types import (
     DocumentText,
     Embedding,
 )
-from tca.models import DocumentChunk3D
-from tca.vector_utils import VectorUtils
+from tca.database.models import DocumentChunk3D
+from tca.embedding.embedding_utils import EmbeddingUtils
 
 
 class ResultChunkWithSimilarity(TypedDict):
@@ -116,7 +116,7 @@ class DocumentChunkManager(BaseDocumentChunkManager):
 
         chunks_with_similarity = []
         for chunk in results:
-            cos_similarity = VectorUtils.cosine_similarity(
+            cos_similarity = EmbeddingUtils.cosine_similarity(
                 np.array(query_embedding), np.array(chunk.embedding)
             )
 
