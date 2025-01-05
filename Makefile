@@ -12,3 +12,8 @@ install:
 	poetry run pre-commit install --allow-missing-config -f
 	poetry run detect-secrets scan > .secrets.baseline
 	alembic upgrade head
+
+run-test:
+	@set -x
+	python tca/test_chunking.py
+	@set +x
