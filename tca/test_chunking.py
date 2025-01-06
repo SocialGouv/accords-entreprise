@@ -5,32 +5,41 @@ import logging.config
 import os
 from pathlib import Path
 
+from tca.database.models import OllamaBgeM3Embedding
 from tca.database.session_manager import PostgresSessionManager
-from tca.document_chunk_manager import DocumentChunkManager
+from tca.document_chunk_manager import DocumentChunkManager, DocumentChunkManagerConfig
+from tca.embedding.embedding_clients import OllamaEmbeddingClient
 from tca.text.document_utils import DocumentUtils
 
 logging.config.fileConfig("logging.conf")
 logger = logging.getLogger(__name__)
 
-postgres_session_manager = PostgresSessionManager()
-session = postgres_session_manager.session
-
-
-document_chunk_manager = DocumentChunkManager(session)
-
 DATA_FOLDER = os.getenv("DATA_FOLDER", "data")
 INPUT_FILE_PREFIXES = [
     "T09224067466",
-    "T00624061516",
-    "T07624061950",
-    "T04524061140",
+    # "T00624061516",
+    # "T07624061950",
+    # "T04524061140",
 ]
 
 
-# TODO: Then implement embedding with a local embedding model
 # TODO: This early test should show that the pipeline works. Store the result so it can be compared to our labeled data
 # TODO: Finally, implement the real embedding and chunking logic using a good embedder and chunking with langchain or similar
 def main() -> None:
+    postgres_session_manager = PostgresSessionManager()
+    session = postgres_session_manager.session
+
+    embedding_client = OllamaEmbeddingClient()
+    ollama_bge_m3_config = DocumentChunkManagerConfig(
+        embedding_client=embedding_client,
+        db_embedding_model_cls=OllamaBgeM3Embedding,
+    )
+
+    document_chunk_manager = DocumentChunkManager(
+        session,
+        ollama_bge_m3_config,
+    )
+
     documents_folder = f"{DATA_FOLDER}/accords_entreprise_niveau2"
     document_paths: list[Path] = []
     for prefix in INPUT_FILE_PREFIXES:
@@ -60,12 +69,16 @@ def main() -> None:
                 extra_metadata={"chunk_index": i},
             )
 
-    # results = document_chunk_manager.query_similar_chunks(
-    #     query_embedding=[0.1, 0.2, 0.3], cos_dist_threshold=0.2
-    # )
+    # query_embeddings = embedding_client.embed(["Durée collective du temps de travail"])[0]
+    query_embeddings = embedding_client.embed(
+        ["Organisation de la durée et de l'aménagement du temps de travail"]
+    )[0]
+    results = document_chunk_manager.query_similar_chunks(
+        query_embeddings=query_embeddings, cos_dist_threshold=0.4
+    )
 
-    # for result in results:
-    #     print(result)
+    for result in results:
+        print(result)
 
 
 if __name__ == "__main__":
