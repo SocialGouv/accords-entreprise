@@ -38,6 +38,13 @@ docker exec -i postgres-pgvector psql -U $POSTGRES_USER -d $POSTGRES_DB -f docke
 
 Then re-run [Init Alembic](#init-alembic)
 
+## Emneddings
+
+### Using Ollama locally
+
+```bash
+ollama pull bge-m3:567m-fp16
+```
 
 ## Test it out (temporary while developping)
 
