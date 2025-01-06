@@ -6,10 +6,9 @@ from tca.custom_types import (
     ChunkID,
     ChunkMetadata,
     ChunkStatus,
-    ChunkText,
     DocumentID,
     DocumentName,
-    Embedding,
+    Embeddings,
     MetadataVersion,
     TimestampSecond,
 )
@@ -26,7 +25,7 @@ class DocumentChunk(PostgreSQLBase):
     id: Mapped[ChunkID] = mapped_column(primary_key=True)
     document_id: Mapped[DocumentID] = mapped_column(nullable=False)
     document_name: Mapped[DocumentName] = mapped_column(nullable=False)
-    chunk_text: Mapped[ChunkText] = mapped_column(nullable=False)
+    chunk_text: Mapped[str] = mapped_column(nullable=False)
     extra_metadata: Mapped[ChunkMetadata] = mapped_column(JSON)
     version: Mapped[MetadataVersion] = mapped_column(nullable=False, default=1)
     status: Mapped[ChunkStatus] = mapped_column(nullable=False, default="UP_TO_DATE")
@@ -47,13 +46,13 @@ class EmbeddingBase(PostgreSQLBase):
     chunk_id: Mapped[ChunkID] = mapped_column(
         ForeignKey("document_chunks.id"), nullable=False
     )
-    embedding: Mapped[Embedding]
+    embedding: Mapped[Embeddings]
 
 
 class OllamaBgeM3Embedding(EmbeddingBase):
     __tablename__ = "ollama_bge_m3_embeddings"
 
-    embedding: Mapped[Embedding] = mapped_column(Vector(1024), nullable=False)
+    embedding: Mapped[Embeddings] = mapped_column(Vector(1024), nullable=False)
     __table_args__ = (
         Index(
             # See https://github.com/pgvector/pgvector/blob/master/README.md#hnsw

@@ -6,12 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tca.custom_types import (
-    ChunkText,
     Distance,
     DocumentID,
     DocumentName,
-    DocumentText,
-    Embedding,
+    Embeddings,
 )
 from tca.database.models import DocumentChunk, EmbeddingBase
 from tca.embedding.embedding_clients import BaseEmbeddingClient
@@ -33,24 +31,24 @@ class BaseDocumentChunkManager(ABC):
         self,
         document_id: DocumentID,
         document_name: DocumentName,
-        chunk_text: ChunkText,
-        chunk_embedding: Embedding,
+        chunk_text: str,
+        chunk_embedding: Embeddings,
         extra_metadata: dict,
     ) -> None:
         pass
 
     @abstractmethod
     def query_similar_chunks(
-        self, query_embedding: Embedding, cos_dist_threshold=0.5
+        self, query_embedding: Embeddings, cos_dist_threshold=0.5
     ) -> list[ResultChunkWithDistance]:
         pass
 
     @abstractmethod
-    def generate_embedding(self, text: DocumentText) -> Embedding:
+    def generate_embedding(self, text: list[str]) -> list[Embeddings]:
         pass
 
     @abstractmethod
-    def chunk_document(self, document_text: DocumentText) -> list[ChunkText]:
+    def chunk_document(self, document_text: str) -> list[str]:
         pass
 
 
@@ -59,24 +57,24 @@ class DummyDocumentChunkManager(BaseDocumentChunkManager):
         self,
         document_id: DocumentID,
         document_name: DocumentName,
-        chunk_text: ChunkText,
-        chunk_embedding: Embedding,
+        chunk_text: str,
+        chunk_embedding: Embeddings,
         extra_metadata: dict,
     ) -> None:
         print("Dummy add_document_chunk called")
 
     def query_similar_chunks(
-        self, query_embedding: Embedding, cos_dist_threshold=0.5
+        self, query_embedding: Embeddings, cos_dist_threshold=0.5
     ) -> list[ResultChunkWithDistance]:
         print("Dummy query_similar_chunks called")
         return []
 
-    def generate_embedding(self, text):
+    def generate_embedding(self, texts: list[str]) -> list[Embeddings]:
         # Placeholder method to generate embeddings for a given text
         # In a real scenario, this could call a machine learning model or an API
-        return [0.1, 0.2, 0.3]  # Example embedding
+        return [[0.1, 0.2, 0.3] for _ in texts]  # Example embedding
 
-    def chunk_document(self, document_text: DocumentText) -> list[ChunkText]:
+    def chunk_document(self, document_text: str) -> list[str]:
         # Example chunking logic: split by paragraphs
         return [chunk.strip() for chunk in document_text.split("\n\n")]
 
@@ -95,8 +93,8 @@ class DocumentChunkManager(BaseDocumentChunkManager):
         self,
         document_id: DocumentID,
         document_name: DocumentName,
-        chunk_text: ChunkText,
-        chunk_embedding: Embedding,
+        chunk_text: str,
+        chunk_embeddings: Embeddings,
         extra_metadata: dict,
     ) -> None:
         current_timestamp = int(time.time())
@@ -114,7 +112,7 @@ class DocumentChunkManager(BaseDocumentChunkManager):
         self.session.flush()  # Ensure the chunk ID is generated
         embedding = self.db_embedding_model_cls(
             chunk_id=chunk.id,
-            embedding=chunk_embedding,
+            embedding=chunk_embeddings,
             created_at=current_timestamp,
             updated_at=current_timestamp,
         )
@@ -122,7 +120,7 @@ class DocumentChunkManager(BaseDocumentChunkManager):
         self.session.commit()
 
     def query_similar_chunks(
-        self, query_embeddings: Embedding, cos_dist_threshold=0.5
+        self, query_embeddings: Embeddings, cos_dist_threshold=0.5
     ) -> list[ResultChunkWithDistance]:
         # Subquery to calculate cosine distance and filter by threshold
         embedding_subquery = (
@@ -160,12 +158,9 @@ class DocumentChunkManager(BaseDocumentChunkManager):
             for result in results
         ]
 
-    def generate_embedding(self, text):
-        # Placeholder method to generate embeddings for a given text
-        # In a real scenario, this could call a machine learning model or an API
-        # TODO: Maybe transform this parameter to a list of texts
-        return self.embedding_client.embed([text])[0]
+    def generate_embedding(self, texts: list[str]) -> list[Embeddings]:
+        return self.embedding_client.embed(texts)
 
-    def chunk_document(self, document_text: DocumentText) -> list[ChunkText]:
+    def chunk_document(self, document_text: str) -> list[str]:
         # Example chunking logic: split by paragraphs
         return [chunk.strip() for chunk in document_text.split("\n\n")]
