@@ -13,7 +13,12 @@ install:
 	poetry run detect-secrets scan > .secrets.baseline
 	alembic upgrade head
 
-run-test:
+run-ingest:
 	@set -x
-	python tca/test_chunking.py
+	python ./scripts/ingest_documents.py
+	@set +x
+
+run-theming:
+	@set -x
+	python ./scripts/theme_documents.py
 	@set +x

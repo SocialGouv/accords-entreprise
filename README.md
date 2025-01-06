@@ -46,10 +46,18 @@ Then re-run [Init Alembic](#init-alembic)
 ollama pull bge-m3:567m-fp16
 ```
 
-## Test it out (temporary while developping)
+## Scripts
+
+### Ingest documents
 
 ```bash
-python tca/test_chunking.py
+make run-ingest
+```
+
+### Theming
+
+```bash
+make run-theming
 ```
 
 ## License
