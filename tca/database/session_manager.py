@@ -23,9 +23,13 @@ class PostgresSessionManager:
             pool_recycle=1800,
         )
         Session = sessionmaker(bind=self.engine)
+
         self._session = Session()
         self._session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        self._session.execute(text("TRUNCATE TABLE document_chunks_3d"))
+        self._session.execute(text("TRUNCATE TABLE document_chunks CASCADE"))
         self._session.execute(
-            text("ALTER SEQUENCE document_chunks_3d_id_seq RESTART WITH 1")
+            text("ALTER SEQUENCE document_chunks_id_seq RESTART WITH 1")
+        )
+        self._session.execute(
+            text("ALTER SEQUENCE ollama_bge_m3_embeddings_id_seq RESTART WITH 1")
         )

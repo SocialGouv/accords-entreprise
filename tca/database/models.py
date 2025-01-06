@@ -1,5 +1,5 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Index
+from sqlalchemy import JSON, ForeignKey, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from tca.custom_types import (
@@ -20,26 +20,46 @@ class PostgreSQLBase(DeclarativeBase):
     updated_at: Mapped[TimestampSecond] = mapped_column(nullable=False)
 
 
-class DocumentChunk3D(PostgreSQLBase):
-    __tablename__ = "document_chunks_3d"
+class DocumentChunk(PostgreSQLBase):
+    __tablename__ = "document_chunks"
 
     id: Mapped[ChunkID] = mapped_column(primary_key=True)
     document_id: Mapped[DocumentID] = mapped_column(nullable=False)
     document_name: Mapped[DocumentName] = mapped_column(nullable=False)
     chunk_text: Mapped[ChunkText] = mapped_column(nullable=False)
-    embedding: Mapped[Embedding] = mapped_column(Vector(3), nullable=False)
     extra_metadata: Mapped[ChunkMetadata] = mapped_column(JSON)
-    # Adding a version column to handle schema changes in extra_metadata
     version: Mapped[MetadataVersion] = mapped_column(nullable=False, default=1)
-    # Adding a status column to track the state of the document chunk
     status: Mapped[ChunkStatus] = mapped_column(nullable=False, default="UP_TO_DATE")
-
-    __table_args__ = (Index("ix_document_chunks_3d_embedding", "embedding"),)
 
     def __repr__(self) -> str:
         return (
-            f"<DocumentChunk3D(id={self.id}, document_name={self.document_name}, document_id={self.document_id}, "
+            f"<DocumentChunk(id={self.id}, document_name={self.document_name}, document_id={self.document_id}, "
             f"extra_metadata={self.extra_metadata}, version={self.version}, "
             f"status={self.status})>\n"
             f'chunk_text:"{self.chunk_text}"'
         )
+
+
+class EmbeddingBase(PostgreSQLBase):
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    chunk_id: Mapped[ChunkID] = mapped_column(
+        ForeignKey("document_chunks.id"), nullable=False
+    )
+    embedding: Mapped[Embedding]
+
+
+class OllamaBgeM3Embedding(EmbeddingBase):
+    __tablename__ = "ollama_bge_m3_embeddings"
+
+    embedding: Mapped[Embedding] = mapped_column(Vector(1024), nullable=False)
+    __table_args__ = (
+        Index(
+            # See https://github.com/pgvector/pgvector/blob/master/README.md#hnsw
+            "ix_ollama_bge_m3_embeddings_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "public.vector_cosine_ops"},
+        ),
+    )
