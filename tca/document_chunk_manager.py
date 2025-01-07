@@ -120,7 +120,7 @@ class DocumentChunkManager(BaseDocumentChunkManager):
         self.session.commit()
 
     def query_similar_chunks(
-        self, query_embeddings: Embeddings, cos_dist_threshold=0.5
+        self, query_embeddings: Embeddings, cos_dist_threshold=0.5, top_k=3
     ) -> list[ResultChunkWithDistance]:
         # Subquery to calculate cosine distance and filter by threshold
         embedding_subquery = (
@@ -134,6 +134,10 @@ class DocumentChunkManager(BaseDocumentChunkManager):
                 self.db_embedding_model_cls.embedding.cosine_distance(query_embeddings)
                 < cos_dist_threshold
             )
+            .order_by(
+                self.db_embedding_model_cls.embedding.cosine_distance(query_embeddings)
+            )
+            .limit(top_k)
             .subquery()
         )
 
