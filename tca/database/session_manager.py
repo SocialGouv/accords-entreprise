@@ -25,6 +25,12 @@ class PostgresSessionManager:
         Session = sessionmaker(bind=self.engine)
 
         self._session = Session()
+
+    def __del__(self):
+        self._session.close()
+        self.engine.dispose()
+
+    def full_reset(self) -> None:
         self._session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         self._session.execute(text("TRUNCATE TABLE document_chunks CASCADE"))
         self._session.execute(

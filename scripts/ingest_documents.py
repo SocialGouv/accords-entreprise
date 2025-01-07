@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 # TODO: Finally, implement the real embedding and chunking logic using a good embedder and chunking with langchain or similar
 def main() -> None:
     postgres_session_manager = PostgresSessionManager()
+    postgres_session_manager.full_reset()
     session = postgres_session_manager.session
 
     embedding_client = OllamaEmbeddingClient()
