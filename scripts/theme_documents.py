@@ -2,6 +2,7 @@
 import logging
 import logging.config
 import os
+import re
 
 import pandas as pd
 
@@ -58,8 +59,89 @@ def main() -> None:
                 }
             )
 
+    output_data = []
+
     for result in results:
-        print(result)
+        for search_result in result["semantic_search_results"]:
+            chunk = search_result["chunk"]
+            document_id_match = re.match(r"T\d+", chunk.document_name)
+            document_id = document_id_match.group(0) if document_id_match else "Unknown"
+            output_data.append(
+                {
+                    "Document ID": document_id,
+                    "Thème n1": result["themes"][0],
+                    "Thème n2": result["themes"][1],
+                    "Distance": search_result["distance"],
+                    "Chunk": chunk.chunk_text,
+                }
+            )
+
+    output_df = pd.DataFrame(output_data)
+
+    expected_df = pd.read_excel(os.path.join(DATA_FOLDER, "normalized_themes.xlsx"))
+
+    comparison_df = pd.merge(
+        output_df,
+        expected_df,
+        on=["Document ID", "Thème n1", "Thème n2"],
+        how="outer",
+        indicator=True,
+    )
+
+    comparison_df["Found"] = comparison_df["_merge"] == "both"
+    comparison_df.drop(columns=["_merge"], inplace=True)
+    theme_performance = (
+        comparison_df.groupby(["Thème n1", "Thème n2"])["Found"]
+        .mean()
+        .reset_index()
+        .rename(columns={"Found": "Found Ratio"})
+    )
+    theme_performance["Found Ratio"] = (theme_performance["Found Ratio"] * 100).round(1)
+    theme_performance.sort_values(by=["Thème n1", "Thème n2"], inplace=True)
+
+    with pd.ExcelWriter(
+        os.path.join(DATA_FOLDER, "comparison_results.xlsx"),
+        engine="xlsxwriter",
+    ) as writer:
+        column_order = [
+            "Document ID",
+            "Thème n1",
+            "Thème n2",
+            "Distance",
+            "Found",
+            "Chunk",
+        ]
+        comparison_df.sort_values(
+            by=["Document ID", "Thème n1", "Thème n2"], inplace=True
+        )
+        comparison_df[column_order].to_excel(
+            writer, index=False, sheet_name="Comparison"
+        )
+        worksheet = writer.sheets["Comparison"]
+        worksheet.freeze_panes(1, 0)
+
+        # Set column widths
+        worksheet.set_column("A:E", 20)
+        worksheet.set_column("F:F", 50)
+
+        header_format = writer.book.add_format({"bold": True})  # type: ignore
+        for col_num, value in enumerate(comparison_df.columns.values):
+            worksheet.write(0, col_num, value, header_format)
+
+        # Set zoom to 140%
+        worksheet.set_zoom(140)
+
+        # Output the "Found Ratio" to a new sheet
+        theme_performance.to_excel(writer, index=False, sheet_name="Found Ratio")
+        worksheet_found_ratio = writer.sheets["Found Ratio"]
+        worksheet_found_ratio.freeze_panes(1, 0)
+
+        # Set column widths for the "Found Ratio" sheet
+        worksheet_found_ratio.set_column("A:B", 20)
+        worksheet_found_ratio.set_column("C:C", 15)
+
+        for col_num, value in enumerate(theme_performance.columns.values):
+            worksheet_found_ratio.write(0, col_num, value, header_format)
 
 
 if __name__ == "__main__":
