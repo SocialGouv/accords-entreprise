@@ -1,15 +1,20 @@
 #!/usr/bin/env python
-
 import logging
 import logging.config
+import os
+
+import pandas as pd
 
 from tca.database.models import OllamaBgeM3Embedding
 from tca.database.session_manager import PostgresSessionManager
 from tca.document_chunk_manager import DocumentChunkManager, DocumentChunkManagerConfig
+from tca.document_ingester import DATA_FOLDER
 from tca.embedding.embedding_clients import OllamaEmbeddingClient
 
 logging.config.fileConfig("logging.conf")
 logger = logging.getLogger(__name__)
+
+DATA_FOLDER = os.getenv("DATA_FOLDER", "data")
 
 
 # TODO: This early test should show that the pipeline works. Store the result so it can be compared to our labeled data
@@ -29,13 +34,29 @@ def main() -> None:
         ollama_bge_m3_config,
     )
 
-    # query_embeddings = embedding_client.embed(["Durée collective du temps de travail"])[0]
-    query_embeddings = embedding_client.embed(
-        ["Organisation de la durée et de l'aménagement du temps de travail"]
-    )[0]
-    results = document_chunk_manager.query_similar_chunks(
-        query_embeddings=query_embeddings, cos_dist_threshold=0.4
-    )
+    theme_list_path = os.path.join(DATA_FOLDER, "theme_list.csv")
+
+    themes = pd.read_csv(theme_list_path)
+    results = []
+    for _index, theme in themes.iterrows():
+        # prompt = (
+        #     f"Generate an embedding for a theme specifically related to company agreements in France. "
+        #     f"The theme hierarchy, from broader to narrower, is: {theme['niveau 1']} -> {theme['niveau 2']}. "
+        #     f"Focus the embedding on representing the semantic meaning of this theme in the context of French labor law and company agreements."
+        # )
+        prompt = f"{theme['niveau 1']} -> {theme['niveau 2']}"
+
+        query_embeddings = embedding_client.embed([prompt])[0]
+        semantic_search_results = document_chunk_manager.query_similar_chunks(
+            query_embeddings=query_embeddings, cos_dist_threshold=0.4, top_k=1
+        )
+        if semantic_search_results:
+            results.append(
+                {
+                    "themes": [theme["niveau 1"], theme["niveau 2"]],
+                    "semantic_search_results": semantic_search_results,
+                }
+            )
 
     for result in results:
         print(result)
