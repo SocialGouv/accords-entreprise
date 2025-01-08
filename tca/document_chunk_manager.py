@@ -38,7 +38,7 @@ class BaseDocumentChunkManager(ABC):
         pass
 
     @abstractmethod
-    def query_similar_chunks(
+    def find_matching_documents(
         self, query_embedding: Embeddings, cos_dist_threshold=0.5
     ) -> list[ResultChunkWithDistance]:
         pass
@@ -63,7 +63,7 @@ class DummyDocumentChunkManager(BaseDocumentChunkManager):
     ) -> None:
         print("Dummy add_document_chunk called")
 
-    def query_similar_chunks(
+    def find_matching_documents(
         self, query_embedding: Embeddings, cos_dist_threshold=0.5
     ) -> list[ResultChunkWithDistance]:
         print("Dummy query_similar_chunks called")
@@ -119,38 +119,29 @@ class DocumentChunkManager(BaseDocumentChunkManager):
         self.session.add(embedding)
         self.session.commit()
 
-    def query_similar_chunks(
-        self, query_embeddings: Embeddings, cos_dist_threshold=0.5, top_k=3
+    def find_matching_documents(
+        self, query_embeddings: Embeddings, cos_dist_threshold=0.5
     ) -> list[ResultChunkWithDistance]:
-        # Subquery to calculate cosine distance and filter by threshold
-        embedding_subquery = (
+        query = (
             select(
-                self.db_embedding_model_cls.chunk_id,
+                DocumentChunk,
                 self.db_embedding_model_cls.embedding.cosine_distance(
                     query_embeddings
                 ).label("cosine_distance"),
+            )
+            .join(
+                self.db_embedding_model_cls,
+                self.db_embedding_model_cls.chunk_id == DocumentChunk.id,
             )
             .filter(
                 self.db_embedding_model_cls.embedding.cosine_distance(query_embeddings)
                 < cos_dist_threshold
             )
+            .distinct(DocumentChunk.document_id)
             .order_by(
-                self.db_embedding_model_cls.embedding.cosine_distance(query_embeddings)
+                DocumentChunk.document_id,
+                "cosine_distance",
             )
-            .limit(top_k)
-            .subquery()
-        )
-
-        # Join the subquery with DocumentChunk to get associated chunks
-        query = (
-            select(
-                DocumentChunk,
-                self.db_embedding_model_cls.embedding,
-                embedding_subquery.c.cosine_distance,
-            )
-            .join(embedding_subquery, embedding_subquery.c.chunk_id == DocumentChunk.id)
-            .filter(self.db_embedding_model_cls.chunk_id == DocumentChunk.id)
-            .order_by(embedding_subquery.c.cosine_distance)
         )
 
         results = self.session.execute(query).all()
