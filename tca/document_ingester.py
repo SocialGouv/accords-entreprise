@@ -5,15 +5,35 @@ import logging.config
 import os
 from pathlib import Path
 
+from tca.constants import DATA_FOLDER
 from tca.document_chunk_manager import DocumentChunkManager
 from tca.text.document_utils import DocumentUtils
 
-DATA_FOLDER = os.getenv("DATA_FOLDER", "data")
 INPUT_FILE_PREFIXES = [
+    "T05123005651",
+    "A05114000445",
     "T09224067466",
     "T00624061516",
     "T07624061950",
     "T04524061140",
+    "T08722002525",
+    "T01023002490",
+    "T00624061500",
+    "T09524061379",
+    "T03624060237",
+    "T07424061122",
+    "T09224067135",
+    "T09423011056",
+    "T03424061573",
+    "T01424061178",
+    "T00624061455",
+    "T06024060960",
+    "T08424060468",
+    "T20A23060010",
+    "T09023001809",
+    "T09523006784",
+    "T01423060053",
+    "T09219008191",
 ]
 
 
