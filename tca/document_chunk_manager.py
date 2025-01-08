@@ -1,6 +1,6 @@
 import time
 from abc import ABC, abstractmethod
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from tca.custom_types import (
 )
 from tca.database.models import DocumentChunk, EmbeddingBase
 from tca.embedding.embedding_clients import BaseEmbeddingClient
+from tca.text.chunker import BaseChunker
 
 
 class DocumentChunkManagerConfig(TypedDict):
@@ -53,6 +54,10 @@ class BaseDocumentChunkManager(ABC):
 
 
 class DummyDocumentChunkManager(BaseDocumentChunkManager):
+    def __init__(self, chunker: Optional[BaseChunker]):
+        super().__init__()
+        self.chunker = chunker
+
     def add_document_chunk(
         self,
         document_id: DocumentID,
@@ -75,8 +80,9 @@ class DummyDocumentChunkManager(BaseDocumentChunkManager):
         return [[0.1, 0.2, 0.3] for _ in texts]  # Example embedding
 
     def chunk_document(self, document_text: str) -> list[str]:
-        # Example chunking logic: split by paragraphs
-        return [chunk.strip() for chunk in document_text.split("\n\n")]
+        if not self.chunker:
+            raise ValueError("Chunker is not provided")
+        return self.chunker.build_chunks(document_text)
 
 
 class DocumentChunkManager(BaseDocumentChunkManager):
@@ -84,10 +90,13 @@ class DocumentChunkManager(BaseDocumentChunkManager):
         self,
         session: Session,
         config: DocumentChunkManagerConfig,
+        chunker: Optional[BaseChunker],
     ):
+        super().__init__()
         self.session = session
         self.embedding_client = config["embedding_client"]
         self.db_embedding_model_cls = config["db_embedding_model_cls"]
+        self.chunker = chunker
 
     def add_document_chunk(
         self,
@@ -154,8 +163,9 @@ class DocumentChunkManager(BaseDocumentChunkManager):
         ]
 
     def generate_embedding(self, texts: list[str]) -> list[Embeddings]:
-        return self.embedding_client.embed(texts)
+        return self.embedding_client.build_embedding(texts)
 
     def chunk_document(self, document_text: str) -> list[str]:
-        # Example chunking logic: split by paragraphs
-        return [chunk.strip() for chunk in document_text.split("\n\n")]
+        if not self.chunker:
+            raise ValueError("Chunker is not provided")
+        return self.chunker.build_chunks(document_text)
