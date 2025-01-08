@@ -27,6 +27,7 @@ class ThemeDocumentProcessor:
                 embedding_client=self.embedding_client,
                 db_embedding_model_cls=OllamaBgeM3Embedding,
             ),
+            chunker=None,
         )
 
     def load_themes(self, theme_list_path: Path) -> pd.DataFrame:
@@ -34,19 +35,22 @@ class ThemeDocumentProcessor:
             lambda s: s.lower() if isinstance(s, str) else s
         )
 
-    def assign_themes_to_docs(self, themes: pd.DataFrame) -> list[Dict[str, Any]]:
+    def assign_themes_to_docs(
+        self, themes: pd.DataFrame, cos_dist_threshold: float = 0.4
+    ) -> list[Dict[str, Any]]:
         results = []
         for _index, theme in themes.iterrows():
             # prompt = f"{theme['niveau 1']} -> {theme['niveau 2']}"
-            # prompt = f"Dans le contexte des accords d'entreprise français, trouvez les passages qui traitent spécifiquement de : {theme['niveau 2']}"
-            prompt = (
-                f"Dans le contexte des accords d'entreprise français et plus précisément dans le domaine '{theme['niveau 1']}', "
-                f"trouvez les passages qui traitent spécifiquement de : {theme['niveau 2']}"
-            )
-            query_embeddings = self.embedding_client.embed([prompt])[0]
+            prompt = f'Dans le contexte des accords d\'entreprise français, trouvez les passages qui mentionnent exactement : "{theme["niveau 2"]}"'
+            # prompt = (
+            #     f"Dans le contexte des accords d'entreprise français et plus précisément dans le domaine '{theme['niveau 1']}', "
+            #     f"trouvez les passages qui traitent exactement de : {theme['niveau 2']}"
+            # )
+            query_embeddings = self.embedding_client.build_embedding([prompt])[0]
             semantic_search_results = (
                 self.document_chunk_manager.find_matching_documents(
-                    query_embeddings=query_embeddings, cos_dist_threshold=0.4
+                    query_embeddings=query_embeddings,
+                    cos_dist_threshold=cos_dist_threshold,
                 )
             )
             if semantic_search_results:
@@ -159,15 +163,18 @@ def main() -> None:
     processor = ThemeDocumentProcessor()
     theme_list_path = Path(os.path.join(DATA_FOLDER, "theme_list.csv"))
     themes = processor.load_themes(theme_list_path)
-    results = processor.assign_themes_to_docs(themes)
-    output_df = processor.build_theme_assignment_df(results)
+    theme_assignments = processor.assign_themes_to_docs(themes, cos_dist_threshold=0.5)
+    theme_assignment_df = processor.build_theme_assignment_df(theme_assignments)
+    if theme_assignment_df.empty:
+        logger.warning("No themes were assigned to documents.")
+        return
     expected_df_path = Path(os.path.join(DATA_FOLDER, "normalized_themes.xlsx"))
     expected_df = pd.read_excel(expected_df_path).map(
         lambda s: s.lower() if isinstance(s, str) else s
     )
 
     comparison_df, theme_performance_df = processor.compare_with_expected(
-        output_df, expected_df
+        theme_assignment_df, expected_df
     )
     output_path = os.path.join(DATA_FOLDER, "comparison_results.xlsx")
     processor.save_theming_results(comparison_df, theme_performance_df, output_path)
