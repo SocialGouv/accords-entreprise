@@ -2,7 +2,7 @@ from pathlib import Path
 
 import docx
 import textract
-from PyPDF2 import PdfFileReader
+from PyPDF2 import PdfReader
 
 
 class DocumentUtils:
@@ -10,9 +10,9 @@ class DocumentUtils:
     def extract_text_from_document(document_file: Path):
         if document_file.suffix == ".pdf":
             with open(document_file, "rb") as file:
-                reader = PdfFileReader(file)
+                reader = PdfReader(file)
                 return "\n".join(
-                    [reader.getPage(i).extract_text() for i in range(reader.numPages)]
+                    [reader.pages[i].extract_text() for i in range(len(reader.pages))]
                 )
         elif document_file.suffix == ".doc":
             return textract.process(str(document_file)).decode("utf-8")
