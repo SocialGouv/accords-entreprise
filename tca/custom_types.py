@@ -2,6 +2,7 @@ from typing import Literal, Union
 
 AccordEntrepriseID = str
 ChunkID = int
+ThemeID = int
 ChunkMetadata = dict
 ChunkStatus = Literal["UP_TO_DATE", "OUTDATED", "DELETED"]
 Distance = float

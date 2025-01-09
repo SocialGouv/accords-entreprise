@@ -25,17 +25,24 @@ class PostgresSessionManager:
         Session = sessionmaker(bind=self.engine)
 
         self._session = Session()
+        self._session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
 
     def __del__(self):
         self._session.close()
         self.engine.dispose()
 
-    def full_reset(self) -> None:
-        self._session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    def full_reset_chunks(self) -> None:
         self._session.execute(text("TRUNCATE TABLE document_chunks CASCADE"))
         self._session.execute(
             text("ALTER SEQUENCE document_chunks_id_seq RESTART WITH 1")
         )
         self._session.execute(
-            text("ALTER SEQUENCE ollama_bge_m3_embeddings_id_seq RESTART WITH 1")
+            text("ALTER SEQUENCE ollama_bge_m3_chunk_embeddings_id_seq RESTART WITH 1")
+        )
+
+    def full_reset_themes(self) -> None:
+        self._session.execute(text("TRUNCATE TABLE themes CASCADE"))
+        self._session.execute(text("ALTER SEQUENCE themes_id_seq RESTART WITH 1"))
+        self._session.execute(
+            text("ALTER SEQUENCE ollama_bge_m3_theme_embeddings_id_seq RESTART WITH 1")
         )

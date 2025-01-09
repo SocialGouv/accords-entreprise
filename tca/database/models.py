@@ -10,6 +10,7 @@ from tca.custom_types import (
     DocumentName,
     Embeddings,
     MetadataVersion,
+    ThemeID,
     TimestampSecond,
 )
 
@@ -39,7 +40,7 @@ class DocumentChunk(PostgreSQLBase):
         )
 
 
-class EmbeddingBase(PostgreSQLBase):
+class ChunkEmbeddingBase(PostgreSQLBase):
     __abstract__ = True
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -49,14 +50,52 @@ class EmbeddingBase(PostgreSQLBase):
     embedding: Mapped[Embeddings]
 
 
-class OllamaBgeM3Embedding(EmbeddingBase):
-    __tablename__ = "ollama_bge_m3_embeddings"
+class OllamaBgeM3ChunkEmbedding(ChunkEmbeddingBase):
+    __tablename__ = "ollama_bge_m3_chunk_embeddings"
 
     embedding: Mapped[Embeddings] = mapped_column(Vector(1024), nullable=False)
     __table_args__ = (
         Index(
             # See https://github.com/pgvector/pgvector/blob/master/README.md#hnsw
-            "ix_ollama_bge_m3_embeddings_embedding",
+            "ix_ollama_bge_m3_chunk_embeddings_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "public.vector_cosine_ops"},
+        ),
+    )
+
+
+class Theme(PostgreSQLBase):
+    __tablename__ = "themes"
+
+    id: Mapped[ThemeID] = mapped_column(primary_key=True)
+    prompt: Mapped[str] = mapped_column(nullable=False)
+    themes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    version: Mapped[MetadataVersion] = mapped_column(nullable=False, default=1)
+    status: Mapped[ChunkStatus] = mapped_column(nullable=False, default="UP_TO_DATE")
+
+    def __repr__(self) -> str:
+        return (
+            f"<ThemePrompt(id={self.id}, prompt={self.prompt}, themes={self.themes}, "
+            f"version={self.version}, status={self.status})>"
+        )
+
+
+class BaseThemeEmbedding(PostgreSQLBase):
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    theme_id: Mapped[ThemeID] = mapped_column(ForeignKey("themes.id"), nullable=False)
+    embedding: Mapped[Embeddings]
+
+
+class OllamaBgeM3ThemeEmbedding(BaseThemeEmbedding):
+    __tablename__ = "ollama_bge_m3_theme_embeddings"
+
+    embedding: Mapped[Embeddings] = mapped_column(Vector(1024), nullable=False)
+    __table_args__ = (
+        Index(
+            "ix_ollama_bge_m3_theme_embeddings_embedding",
             "embedding",
             postgresql_using="hnsw",
             postgresql_ops={"embedding": "public.vector_cosine_ops"},
