@@ -38,7 +38,7 @@ docker exec -i postgres-pgvector psql -U $POSTGRES_USER -d $POSTGRES_DB -f docke
 
 Then re-run [Init Alembic](#init-alembic)
 
-## Emneddings
+## Embeddings
 
 ### Using Ollama locally
 
@@ -51,7 +51,13 @@ ollama pull bge-m3:567m-fp16
 ### Ingest documents
 
 ```bash
-make run-ingest
+make ingest-docs
+```
+
+### Ingest themes
+
+```bash
+make ingest-themes
 ```
 
 ### Theming

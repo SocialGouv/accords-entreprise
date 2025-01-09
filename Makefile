@@ -23,9 +23,14 @@ install:
 	poetry run detect-secrets scan > .secrets.baseline
 	alembic upgrade head
 
-run-ingest:
+ingest-docs:
 	@set -x
 	python ./scripts/ingest_documents.py
+	@set +x
+
+ingest-themes:
+	@set -x
+	python ./scripts/ingest_themes.py
 	@set +x
 
 run-theming:

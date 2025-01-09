@@ -83,7 +83,6 @@ class SemanticChunker(BaseChunker):
             ) or len(new_chunk_text) > self.max_chunk_size:
                 new_chunk = ". ".join(chunk_candidates[:-1])
                 chunks.append(new_chunk)
-                print(f"NEW_CHUNK: \n{new_chunk}\n")
                 chunk_candidates = [simple_chunk]
                 current_embedding = self.embedding_client.build_embedding(
                     [simple_chunk]
