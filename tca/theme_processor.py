@@ -58,18 +58,35 @@ class ThemeProcessor:
             how="outer",
             indicator=True,
         )
-        comparison_df["Found"] = comparison_df["_merge"] == "both"
+        for status, column_name in [
+            ("both", "Found"),
+            ("right_only", "Incorrectly Found"),
+        ]:
+            comparison_df[column_name] = comparison_df["_merge"] == status
+            performance_df = (
+                comparison_df.groupby(["Thème n1", "Thème n2"])[column_name]
+                .mean()
+                .reset_index()
+                .rename(columns={column_name: f"{column_name} Ratio"})
+            )
+            performance_df[f"{column_name} Ratio"] = (
+                performance_df[f"{column_name} Ratio"] * 100
+            ).round(1)
+            performance_df.sort_values(by=["Thème n1", "Thème n2"], inplace=True)
+            if column_name == "Found":
+                theme_performance_df = performance_df
+            else:
+                incorrect_theme_performance_df = performance_df
+
         comparison_df.drop(columns=["_merge"], inplace=True)
-        theme_performance_df = (
-            comparison_df.groupby(["Thème n1", "Thème n2"])["Found"]
-            .mean()
-            .reset_index()
-            .rename(columns={"Found": "Found Ratio"})
+
+        # Merge the correct and incorrect theme performance dataframes
+        theme_performance_df = pd.merge(
+            theme_performance_df,
+            incorrect_theme_performance_df,
+            on=["Thème n1", "Thème n2"],
+            how="left",
         )
-        theme_performance_df["Found Ratio"] = (
-            theme_performance_df["Found Ratio"] * 100
-        ).round(1)
-        theme_performance_df.sort_values(by=["Thème n1", "Thème n2"], inplace=True)
         return comparison_df, theme_performance_df
 
     def save_theming_results(
@@ -108,14 +125,16 @@ class ThemeProcessor:
             worksheet.set_zoom(140)
 
             # Output the "Found Ratio" to a new sheet
-            theme_performance_df.sort_values(by=["Found Ratio"], inplace=True)
-            theme_performance_df.to_excel(writer, index=False, sheet_name="Found Ratio")
-            worksheet_found_ratio = writer.sheets["Found Ratio"]
+            theme_performance_df.sort_values(
+                by=["Found Ratio", "Incorrectly Found Ratio"], inplace=True
+            )
+            theme_performance_df.to_excel(writer, index=False, sheet_name="Analysis")
+            worksheet_found_ratio = writer.sheets["Analysis"]
             worksheet_found_ratio.freeze_panes(1, 0)
 
-            # Set column widths for the "Found Ratio" sheet
+            # Set column widths for the "Analysis" sheet
             worksheet_found_ratio.set_column("A:B", 20)
-            worksheet_found_ratio.set_column("C:C", 15)
+            worksheet_found_ratio.set_column("C:D", 15)
 
             for col_num, value in enumerate(theme_performance_df.columns.values):
                 worksheet_found_ratio.write(0, col_num, value, header_format)
