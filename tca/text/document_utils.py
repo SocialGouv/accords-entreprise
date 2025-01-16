@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from doc2docx import convert
-from langchain_community.document_loaders.word_document import Docx2txtLoader
+from docx import Document
 from PyPDF2 import PdfReader
 
 from tca.constants import DATA_FOLDER
@@ -20,10 +20,8 @@ class DocumentLoader:
             )
 
     def load_text_from_docx_file(self, document_file: Path):
-        docx_loader = Docx2txtLoader(document_file)
-        documents = docx_loader.load()
-
-        return "\n".join([doc.page_content for doc in documents])
+        doc = Document(str(document_file))
+        return "\n".join([paragraph.text for paragraph in doc.paragraphs])
 
     def load_text_from_doc_file(self, document_file: Path):
         new_document_name = document_file.stem
