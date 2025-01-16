@@ -1,141 +1,128 @@
 #!/usr/bin/env python
 import logging
 import logging.config
-import re
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Tuple
 
+import numpy as np
 import pandas as pd
-
-from tca.embedding.embedding_clients import BaseEmbeddingClient
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 logging.config.fileConfig("logging.conf")
 logger = logging.getLogger(__name__)
 
 
 class ThemeProcessor:
-    def __init__(
-        self,
-        embedding_client: BaseEmbeddingClient,
-    ) -> None:
-        self.embedding_client = embedding_client
-
-    def load_themes(self, theme_list_path: Path) -> pd.DataFrame:
-        return pd.read_csv(theme_list_path).map(
+    @staticmethod
+    def load_themes(theme_list_path: Path) -> pd.DataFrame:
+        return pd.read_csv(theme_list_path, encoding="UTF8").map(
             lambda s: s.lower() if isinstance(s, str) else s
         )
 
-    def build_theme_assignment_df(
-        self, theme_assignments: list[Dict[str, Any]]
-    ) -> pd.DataFrame:
-        structured_theme_assignment = []
-        for theme_assignment in theme_assignments:
-            for search_result in theme_assignment["semantic_search_results"]:
-                chunk = search_result["chunk"]
-                document_id_match = re.match(r"[AT]\d+", chunk.document_name)
-                document_id = (
-                    document_id_match.group(0) if document_id_match else "Unknown"
+    @staticmethod
+    def evaluate_classification(
+        theme_assignment_df: pd.DataFrame, expected_df: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Evaluates theme classification performance using standard metrics.
+
+        Args:
+            theme_assignment_df: DataFrame with predicted theme assignments
+            expected_df: DataFrame with ground truth theme assignments
+
+        Returns:
+            Tuple of (detailed metrics DataFrame, overall metrics dict)
+        """
+        # Create binary indicators for each theme combination
+        all_docs = pd.concat([theme_assignment_df, expected_df])["Document ID"].unique()
+
+        per_theme_metrics_data = []
+        for theme1 in expected_df["Thème n1"].unique():
+            for theme2 in np.unique(
+                expected_df[expected_df["Thème n1"] == theme1]["Thème n2"]
+            ):
+                # Create binary vectors for this theme combination
+                y_true = np.zeros(len(all_docs))
+                y_pred = np.zeros(len(all_docs))
+
+                true_docs = set(
+                    expected_df[
+                        (expected_df["Thème n1"] == theme1)
+                        & (expected_df["Thème n2"] == theme2)
+                    ]["Document ID"]
                 )
-                document_id = document_id.lower()
-                structured_theme_assignment.append(
+
+                pred_docs = set(
+                    theme_assignment_df[
+                        (theme_assignment_df["Thème n1"] == theme1)
+                        & (theme_assignment_df["Thème n2"] == theme2)
+                    ]["Document ID"]
+                )
+
+                for i, doc_id in enumerate(all_docs):
+                    y_true[i] = 1 if doc_id in true_docs else 0
+                    y_pred[i] = 1 if doc_id in pred_docs else 0
+
+                # Calculate metrics
+                tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+
+                per_theme_metrics_data.append(
                     {
-                        "Document ID": document_id,
-                        "Thème n1": theme_assignment["themes"][0],
-                        "Thème n2": theme_assignment["themes"][1],
-                        "Distance": search_result["distance"],
-                        "Chunk": chunk.chunk_text,
+                        "Thème n1": theme1,
+                        "Thème n2": theme2,
+                        "Precision": precision_score(y_true, y_pred),
+                        "Recall": recall_score(y_true, y_pred),
+                        "F1": f1_score(y_true, y_pred),
+                        "True Positives": tp,
+                        "False Positives": fp,
+                        "False Negatives": fn,
+                        "Support": len(true_docs),
                     }
                 )
-        return pd.DataFrame(structured_theme_assignment)
 
-    def compare_with_expected(
-        self, theme_assignment_df: pd.DataFrame, expected_df: pd.DataFrame
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        comparison_df = pd.merge(
-            theme_assignment_df,
-            expected_df,
-            on=["Document ID", "Thème n1", "Thème n2"],
-            how="outer",
-            indicator=True,
+        # Create detailed metrics DataFrame
+        per_theme_metrics_df = pd.DataFrame(per_theme_metrics_data)
+        per_theme_metrics_df.sort_values(["Thème n1", "Thème n2"], inplace=True)
+
+        # Calculate macro averages
+        overall_metrics_df = pd.DataFrame(
+            {
+                "Macro Precision": [per_theme_metrics_df["Precision"].mean()],
+                "Macro Recall": [per_theme_metrics_df["Recall"].mean()],
+                "Macro F1": [per_theme_metrics_df["F1"].mean()],
+                "Total Support": [per_theme_metrics_df["Support"].sum()],
+            }
         )
-        for status, column_name in [
-            ("both", "Found"),
-            ("right_only", "Incorrectly Found"),
-        ]:
-            comparison_df[column_name] = comparison_df["_merge"] == status
-            performance_df = (
-                comparison_df.groupby(["Thème n1", "Thème n2"])[column_name]
-                .mean()
-                .reset_index()
-                .rename(columns={column_name: f"{column_name} Ratio"})
-            )
-            performance_df[f"{column_name} Ratio"] = (
-                performance_df[f"{column_name} Ratio"] * 100
-            ).round(1)
-            performance_df.sort_values(by=["Thème n1", "Thème n2"], inplace=True)
-            if column_name == "Found":
-                theme_performance_df = performance_df
-            else:
-                incorrect_theme_performance_df = performance_df
 
-        comparison_df.drop(columns=["_merge"], inplace=True)
+        # Format percentages
+        for col in ["Precision", "Recall", "F1"]:
+            per_theme_metrics_df[col] = (per_theme_metrics_df[col] * 100).round(1)
 
-        # Merge the correct and incorrect theme performance dataframes
-        theme_performance_df = pd.merge(
-            theme_performance_df,
-            incorrect_theme_performance_df,
-            on=["Thème n1", "Thème n2"],
-            how="left",
-        )
-        return comparison_df, theme_performance_df
+        return per_theme_metrics_df, overall_metrics_df
 
+    @staticmethod
     def save_theming_results(
-        self,
-        comparison_df: pd.DataFrame,
-        theme_performance_df: pd.DataFrame,
+        per_theme_metrics_df: pd.DataFrame,
+        overall_metrics_df: pd.DataFrame,
         output_path: str,
     ) -> None:
         with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-            column_order = [
-                "Document ID",
-                "Thème n1",
-                "Thème n2",
-                "Distance",
-                "Found",
-                "Chunk",
-            ]
-            comparison_df.sort_values(
-                by=["Document ID", "Thème n1", "Thème n2"], inplace=True
-            )
-            comparison_df[column_order].to_excel(
-                writer, index=False, sheet_name="Comparison"
-            )
-            worksheet = writer.sheets["Comparison"]
-            worksheet.freeze_panes(1, 0)
-
-            # Set column widths
-            worksheet.set_column("A:E", 20)
-            worksheet.set_column("F:F", 50)
-
             header_format = writer.book.add_format({"bold": True})  # type: ignore
-            for col_num, value in enumerate(comparison_df.columns.values):
-                worksheet.write(0, col_num, value, header_format)
 
-            # Set zoom to 140%
+            per_theme_metrics_df.to_excel(
+                writer, index=False, sheet_name="Theme Results"
+            )
+            worksheet = writer.sheets["Theme Results"]
+            worksheet.freeze_panes(1, 0)
+            for col_num, value in enumerate(per_theme_metrics_df.columns.values):
+                worksheet.write(0, col_num, value, header_format)
             worksheet.set_zoom(140)
 
-            # Output the "Found Ratio" to a new sheet
-            theme_performance_df.sort_values(
-                by=["Found Ratio", "Incorrectly Found Ratio"], inplace=True
+            overall_metrics_df.to_excel(
+                writer, index=False, sheet_name="Overall Results"
             )
-            theme_performance_df.to_excel(writer, index=False, sheet_name="Analysis")
-            worksheet_found_ratio = writer.sheets["Analysis"]
+            worksheet_found_ratio = writer.sheets["Overall Results"]
             worksheet_found_ratio.freeze_panes(1, 0)
-
-            # Set column widths for the "Analysis" sheet
-            worksheet_found_ratio.set_column("A:B", 20)
-            worksheet_found_ratio.set_column("C:D", 15)
-
-            for col_num, value in enumerate(theme_performance_df.columns.values):
+            for col_num, value in enumerate(overall_metrics_df.columns.values):
                 worksheet_found_ratio.write(0, col_num, value, header_format)
             worksheet_found_ratio.set_zoom(140)
