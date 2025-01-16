@@ -35,5 +35,5 @@ ingest-themes:
 
 run-theming:
 	@set -x
-	python ./scripts/theme_documents.py
+	python ./scripts/run_theming.py
 	@set +x
