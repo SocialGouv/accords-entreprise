@@ -37,12 +37,32 @@ class PostgresSessionManager:
             text("ALTER SEQUENCE document_chunks_id_seq RESTART WITH 1")
         )
         self._session.execute(
-            text("ALTER SEQUENCE ollama_bge_m3_chunk_embeddings_id_seq RESTART WITH 1")
+            text("ALTER SEQUENCE bge_m3_chunk_embeddings_id_seq RESTART WITH 1")
+        )
+        self._session.execute(
+            text(
+                "ALTER SEQUENCE bge_multilingual_gemma2_chunk_embeddings_id_seq RESTART WITH 1"
+            )
+        )
+        self._session.execute(
+            text(
+                "ALTER SEQUENCE openai_text_embedding_3_large_chunk_embeddings_id_seq RESTART WITH 1"
+            )
         )
 
     def full_reset_themes(self) -> None:
         self._session.execute(text("TRUNCATE TABLE themes CASCADE"))
         self._session.execute(text("ALTER SEQUENCE themes_id_seq RESTART WITH 1"))
         self._session.execute(
-            text("ALTER SEQUENCE ollama_bge_m3_theme_embeddings_id_seq RESTART WITH 1")
+            text("ALTER SEQUENCE bge_m3_theme_embeddings_id_seq RESTART WITH 1")
+        )
+        self._session.execute(
+            text(
+                "ALTER SEQUENCE bge_multilingual_gemma2_theme_embeddings_id_seq RESTART WITH 1"
+            )
+        )
+        self._session.execute(
+            text(
+                "ALTER SEQUENCE openai_text_embedding_3_large_theme_embeddings_id_seq RESTART WITH 1"
+            )
         )

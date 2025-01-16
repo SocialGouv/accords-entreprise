@@ -11,3 +11,7 @@ DocumentName = str
 Embeddings = list[float]
 MetadataVersion = int
 TimestampSecond = int
+
+LLMType = Literal[
+    "ollama", "openai", "vllm", "llm_inference", "fake", "albert", "llama"
+]
