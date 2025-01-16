@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from doc2docx import convert
@@ -42,5 +43,11 @@ class DocumentLoader:
 
         extractor = extractors.get(document_file.suffix)
         if extractor:
-            return extractor(document_file)
+            document_text = extractor(document_file)
+            document_text = document_text.lower()
+            # document_text = re.sub(r"\d+", "", document_text)
+            # document_text = re.sub(r"[^a-zA-ZÀ-ÿ,.!?'\n\s\-]", "", document_text)
+            # document_text = re.sub(r"(?<!\w)-(?!\w)", "", document_text)
+            document_text = re.sub(r"\s+", " ", document_text)
+            return document_text
         return ""
