@@ -1,5 +1,25 @@
 # Assigner des thèmes aux accords d'entreprise
 
+## Environment
+
+You might want to set the following env variables:
+
+```bash
+# POTGRES DB - Storage of embeddings, chunks, themes
+export POSTGRES_USER="user"
+export POSTGRES_PASSWORD="123456"
+export POSTGRES_DB="company_agreements"
+
+# SCALEWAY - if you are running embedding models on it
+export SCALEWAY_API_KEY="<API_KEY>"
+export SCALEWAY_BASE_URL="<URL>/v1"
+export SCALEWAY_MODEL_NAME="baai/bge-multilingual-gemma2:fp32"
+
+# OPENAI - if you are using its embedding models
+export OPENAI_API_KEY="<API_KEY>"
+export OPENAI_MODEL_NAME="text-embedding-3-large"
+```
+
 ## Docker PostgreSQL
 
 ```bash
