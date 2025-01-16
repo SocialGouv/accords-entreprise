@@ -32,7 +32,7 @@ class BaseDocumentChunkDBClient(ABC):
         pass
 
     @abstractmethod
-    def find_matching_documents(
+    def find_matching_documents_with_cos_dist(
         self, query_embeddings: Embeddings, cos_dist_threshold=0.5
     ) -> list[ResultChunkWithDistance]:
         pass
@@ -71,20 +71,20 @@ class DocumentChunkDBClient(BaseDocumentChunkDBClient):
         self.session.flush()  # Ensure the chunk ID is generated
         embedding = self.db_embedding_model_cls(
             chunk_id=chunk.id,
-            embedding=chunk_embeddings,
+            embeddings=chunk_embeddings,
             created_at=current_timestamp,
             updated_at=current_timestamp,
         )
         self.session.add(embedding)
         self.session.commit()
 
-    def find_matching_documents(
-        self, query_embeddings: Embeddings, cos_dist_threshold=0.5
+    def find_matching_documents_with_cos_dist(
+        self, query_embeddings: Embeddings, cos_dist_threshold=0.3
     ) -> list[ResultChunkWithDistance]:
         query = (
             select(
                 DocumentChunk,
-                self.db_embedding_model_cls.embedding.cosine_distance(
+                self.db_embedding_model_cls.embeddings.cosine_distance(
                     query_embeddings
                 ).label("cosine_distance"),
             )
@@ -93,14 +93,14 @@ class DocumentChunkDBClient(BaseDocumentChunkDBClient):
                 self.db_embedding_model_cls.chunk_id == DocumentChunk.id,
             )
             .filter(
-                self.db_embedding_model_cls.embedding.cosine_distance(query_embeddings)
+                self.db_embedding_model_cls.embeddings.cosine_distance(query_embeddings)
                 < cos_dist_threshold
             )
-            .distinct(DocumentChunk.document_id)
             .order_by(
                 DocumentChunk.document_id,
                 "cosine_distance",
             )
+            .distinct(DocumentChunk.document_id)
         )
 
         results = self.session.execute(query).all()

@@ -2,9 +2,9 @@
 import logging
 import logging.config
 import time
+from typing import TypedDict
 
 import pandas as pd
-from sqlalchemy import Row
 from sqlalchemy.orm import Session
 
 from tca.custom_types import Embeddings
@@ -18,55 +18,68 @@ logging.config.fileConfig("logging.conf")
 logger = logging.getLogger(__name__)
 
 
+class ThemeWithEmbedding(TypedDict):
+    theme: Theme
+    embeddings: Embeddings
+
+
 class ThemeDBClient:
     def __init__(
         self,
         session: Session,
-        embedding_client: BaseEmbeddingClient,
         db_theme_prompt_embedding_cls: type[BaseThemeEmbedding],
     ) -> None:
         self.session = session
-        self.embedding_client = embedding_client
         self.db_theme_prompt_embedding_cls = db_theme_prompt_embedding_cls
 
-    def ingest_themes_in_db(self, themes: pd.DataFrame) -> None:
-        for _index, theme in themes.iterrows():
-            # prompt = f"{theme['niveau 1']} -> {theme['niveau 2']}"
-            prompt = f'Dans le contexte des accords d\'entreprise français, trouvez les passages qui mentionnent exactement : "{theme["niveau 2"]}"'
-            # prompt = (
-            #     f"Dans le contexte des accords d'entreprise français et plus précisément dans le domaine '{theme['niveau 1']}', "
-            #     f"trouvez les passages qui traitent exactement de : {theme['niveau 2']}"
-            # )
-            theme_prompt_embeddings = self.embedding_client.build_embedding([prompt])[0]
+    def ingest_themes_in_db(
+        self, embedding_client: BaseEmbeddingClient, themes: pd.DataFrame
+    ) -> None:
+        logger.info("Ingesting themes in the database")
+        prompts = themes["description"].tolist()
+        all_theme_prompt_embeddings = embedding_client.encode_queries(prompts)
+
+        for idx in range(len(themes)):
+            theme = themes.iloc[idx]
+            prompt = prompts[idx]
+            theme_prompt_embeddings = all_theme_prompt_embeddings[idx]
+
             current_timestamp = int(time.time())
-            theme = Theme(
+            built_theme = Theme(
                 prompt=prompt,
+                description=theme["description"],
                 themes=[theme["niveau 1"], theme["niveau 2"]],
                 created_at=current_timestamp,
                 updated_at=current_timestamp,
             )
-            self.session.add(theme)
+            logger.info(f"Adding theme: {theme['niveau 2']}")
+            self.session.add(built_theme)
             self.session.flush()
             theme_embedding = self.db_theme_prompt_embedding_cls(
-                theme_id=theme.id,
-                embedding=theme_prompt_embeddings,
+                theme_id=built_theme.id,
+                embeddings=theme_prompt_embeddings,
                 created_at=current_timestamp,
                 updated_at=current_timestamp,
             )
             self.session.add(theme_embedding)
         self.session.commit()
 
-    def get_themes_with_embeddings(self) -> list[Row[tuple[list[str], Embeddings]]]:
-        return (
-            self.session.query(
-                Theme.themes,
-                self.db_theme_prompt_embedding_cls.embedding.label(
-                    "theme_prompt_embedding"
-                ),
-            )
-            .join(
-                self.db_theme_prompt_embedding_cls,
-                Theme.id == self.db_theme_prompt_embedding_cls.theme_id,
-            )
-            .all()
-        )
+    def get_themes_with_their_embeddings(
+        self,
+    ) -> list[ThemeWithEmbedding]:
+        # I am not doing this in a single query because sqlalchemy does not support
+        # de-duplicating numpy arrays and it needs to do that if I join these two tables...
+        themes = self.session.query(Theme).all()
+
+        embeddings_result = self.session.query(
+            self.db_theme_prompt_embedding_cls.theme_id,
+            self.db_theme_prompt_embedding_cls.embeddings,
+        ).all()
+        embeddings_dict = {
+            embedding.theme_id: embedding.embeddings for embedding in embeddings_result
+        }
+
+        return [
+            ThemeWithEmbedding(theme=theme, embeddings=embeddings_dict[theme.id])
+            for theme in themes
+        ]
