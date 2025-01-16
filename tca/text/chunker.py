@@ -8,21 +8,43 @@ from tca.embedding.embedding_clients import BaseEmbeddingClient
 
 
 class BaseChunker(ABC):
-    @abstractmethod
     def build_chunks(self, document_text: str) -> list[str]:
-        pass
+        doc_chunks = self._build_chunks(document_text)
+        doc_chunks = [chunk.strip() for chunk in doc_chunks if chunk.strip()]
+        doc_chunks = [chunk for chunk in doc_chunks if len(chunk) >= 10]
+        return doc_chunks
+
+    @abstractmethod
+    def _build_chunks(self, document_text: str) -> list[str]:
+        raise NotImplementedError("Subclasses should implement this method")
 
 
 class DelimiterChunker(BaseChunker):
-    def __init__(self, delimiter_pattern: str = r"\.|\n\n?|\!|\?"):
+    def __init__(
+        self, delimiter_pattern: str = r"\.|\n\n?|\!|\?", min_chunk_size: int = 100
+    ):
         super().__init__()
         self.delimiter_pattern = delimiter_pattern
+        self.min_chunk_size = min_chunk_size
 
-    def build_chunks(self, document_text: str) -> list[str]:
+    def _build_chunks(self, document_text: str) -> list[str]:
         chunks = re.split(self.delimiter_pattern, document_text)
-        stripped_chunks = (chunk.strip() for chunk in chunks)
-        non_empty_chunks = [paragraph for paragraph in stripped_chunks if paragraph]
-        return non_empty_chunks
+        stripped_chunks = [chunk.strip() for chunk in chunks if chunk.strip()]
+
+        merged_chunks = []
+        current_chunk = ""
+
+        for chunk in stripped_chunks:
+            if len(current_chunk) > 0:
+                current_chunk += "\n" + chunk
+            else:
+                current_chunk = chunk
+
+            if len(current_chunk) >= self.min_chunk_size:
+                merged_chunks.append(current_chunk)
+                current_chunk = ""
+
+        return merged_chunks
 
 
 class RecursiveChunker(BaseChunker):
@@ -31,7 +53,7 @@ class RecursiveChunker(BaseChunker):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    def build_chunks(self, document_text: str) -> list[str]:
+    def _build_chunks(self, document_text: str) -> list[str]:
         splitter = RecursiveCharacterTextSplitter(
             keep_separator=True,
             chunk_size=self.chunk_size,
@@ -56,7 +78,7 @@ class SemanticChunker(BaseChunker):
         self.embedding_client = embedding_client
         self.similarity_threshold = similarity_threshold
 
-    def build_chunks(self, document_text: str) -> list[str]:
+    def _build_chunks(self, document_text: str) -> list[str]:
         simple_chunks = self.pre_chunker.build_chunks(document_text)
         chunks = []
         chunk_candidates = []
@@ -65,7 +87,7 @@ class SemanticChunker(BaseChunker):
         for simple_chunk in simple_chunks:
             chunk_candidates.append(simple_chunk)
             new_chunk_text = ". ".join(chunk_candidates)
-            new_embedding = self.embedding_client.build_embedding([new_chunk_text])
+            new_embedding = self.embedding_client.encode_corpus([new_chunk_text])
 
             if current_embedding is None:
                 current_embedding = new_embedding
@@ -82,11 +104,10 @@ class SemanticChunker(BaseChunker):
                 and len(new_chunk_text) > self.min_chunk_size
             ) or len(new_chunk_text) > self.max_chunk_size:
                 new_chunk = ". ".join(chunk_candidates[:-1])
+                print(f"new_chunk {new_chunk}\n")
                 chunks.append(new_chunk)
                 chunk_candidates = [simple_chunk]
-                current_embedding = self.embedding_client.build_embedding(
-                    [simple_chunk]
-                )
+                current_embedding = self.embedding_client.encode_corpus([simple_chunk])
             else:
                 current_embedding = new_embedding
 
