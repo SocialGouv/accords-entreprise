@@ -34,7 +34,7 @@ class ThemeProcessor:
             Tuple of (detailed metrics DataFrame, overall metrics dict)
         """
         # Create binary indicators for each theme combination
-        all_docs = pd.concat([theme_assignment_df, expected_df])["Document ID"].unique()
+        all_docs = pd.concat([theme_assignment_df, expected_df])["Document"].unique()
 
         per_theme_metrics_data = []
         for theme1 in expected_df["Thème n1"].unique():
@@ -49,14 +49,14 @@ class ThemeProcessor:
                     expected_df[
                         (expected_df["Thème n1"] == theme1)
                         & (expected_df["Thème n2"] == theme2)
-                    ]["Document ID"]
+                    ]["Document"]
                 )
 
                 pred_docs = set(
                     theme_assignment_df[
                         (theme_assignment_df["Thème n1"] == theme1)
                         & (theme_assignment_df["Thème n2"] == theme2)
-                    ]["Document ID"]
+                    ]["Document"]
                 )
 
                 for i, doc_id in enumerate(all_docs):
@@ -70,9 +70,9 @@ class ThemeProcessor:
                     {
                         "Thème n1": theme1,
                         "Thème n2": theme2,
-                        "Precision": precision_score(y_true, y_pred),
-                        "Recall": recall_score(y_true, y_pred),
-                        "F1": f1_score(y_true, y_pred),
+                        "Precision": precision_score(y_true, y_pred, zero_division=0),  # type: ignore
+                        "Recall": recall_score(y_true, y_pred, zero_division=0),  # type: ignore
+                        "F1": f1_score(y_true, y_pred, zero_division=0),  # type: ignore
                         "True Positives": tp,
                         "False Positives": fp,
                         "False Negatives": fn,

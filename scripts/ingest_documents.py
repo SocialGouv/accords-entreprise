@@ -17,6 +17,7 @@ from tca.embedding.embedding_clients import (
 from tca.text.chunker import DelimiterChunker
 
 INPUT_FILE_PREFIXES = [
+    "T09023001809",
     "T00624061455",
     "T00624061500",
     "T00624061516",
@@ -32,7 +33,6 @@ INPUT_FILE_PREFIXES = [
     "T07624061950",
     "T08424060468",
     "T08722002525",
-    "T09023001809",
     "T09219008191",
     "T09224067135",
     "T09224067466",

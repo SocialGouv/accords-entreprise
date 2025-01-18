@@ -8,16 +8,15 @@ import pandas as pd
 
 from scripts.ingest_themes import ThemeProcessor
 from tca.constants import DATA_FOLDER
-from tca.database.document_chunk_db_client import (
-    DocumentChunkDBClient,
-)
 from tca.database.models import (
-    OpenAITextEmbedding3LargeChunkEmbedding,
     OpenAITextEmbedding3LargeThemeEmbedding,
 )
 from tca.database.session_manager import PostgresSessionManager
 from tca.database.theme_db_client import ThemeDBClient
-from tca.theme_assignment_strategies import EmbeddingOnlyThemeAssignmentStrategy
+from tca.text.llm_clients import OpenAIAPIClient
+from tca.theme_assignment_strategies import (
+    EmbeddingLLMThemeAssignmentStrategy,
+)
 
 logging.config.fileConfig("logging.conf")
 logger = logging.getLogger(__name__)
@@ -27,20 +26,28 @@ def main() -> None:
     postgres_session_manager = PostgresSessionManager()
     session = postgres_session_manager.session
 
-    retrieval_strategy = EmbeddingOnlyThemeAssignmentStrategy(cos_dist_threshold=0.5)
+    # document_chunk_db_client = DocumentChunkDBClient(
+    #     session=session,
+    #     db_embedding_model_cls=OpenAITextEmbedding3LargeChunkEmbedding,
+    # )
+    # retrieval_strategy = EmbeddingOnlyThemeAssignmentStrategy(document_chunk_db_client = document_chunk_db_client, cos_dist_threshold=0.5)
+
+    llm_client = OpenAIAPIClient(
+        model_name=os.environ["OPENAI_LLM_MODEL"],
+        api_key=os.environ["OPENAI_API_KEY"],
+    )
+    retrieval_strategy = EmbeddingLLMThemeAssignmentStrategy(
+        session=session, llm_client=llm_client, nb_chunks_to_retrieve=6
+    )
 
     theme_db_client = ThemeDBClient(
         session=session,
         db_theme_prompt_embedding_cls=OpenAITextEmbedding3LargeThemeEmbedding,
     )
-    document_chunk_db_client = DocumentChunkDBClient(
-        session=session,
-        db_embedding_model_cls=OpenAITextEmbedding3LargeChunkEmbedding,
-    )
 
     themes_with_embeddings = theme_db_client.get_themes_with_their_embeddings()
     theme_assignment_df = retrieval_strategy.find_matching_themes_for_documents(
-        themes_with_embeddings, document_chunk_db_client
+        themes_with_embeddings
     )
 
     if theme_assignment_df.empty:
