@@ -1,0 +1,29 @@
+model:
+  name: "BAAI/bge-small-en" # Base model to fine-tune from HuggingFace
+  max_length: 512 # Maximum sequence length for input text tokenization
+
+training:
+  batch_size: 32 # Batch size for training
+  gradient_accumulation_steps: 2 # Number of steps to accumulate gradients before updating
+  learning_rate: 2e-5 # Learning rate for optimization
+  weight_decay: 0.01 # L2 regularization factor
+  num_epochs: 10 # Number of training epochs
+  warmup_ratio: 0.1 # Fraction of steps for learning rate warmup
+  save_steps: 1000 # Save model checkpoint every N steps
+  fp16: true # Enable mixed precision training for memory efficiency
+  gradient_checkpointing: true # Memory optimization for training
+
+optimization:
+  use_8bit_adam: true # Use 8-bit Adam optimizer for memory efficiency
+  use_gradient_checkpointing: true # Enable gradient checkpointing for memory optimization
+  max_grad_norm: 1.0 # Maximum gradient norm for clipping
+
+data:
+  num_workers: 4 # Number of worker processes for data loading
+
+logging:
+  wandb_project: "embedding-finetuning" # Weights & Biases project name
+  log_steps: 100 # Log metrics to W&B every N steps
+
+output:
+  model_dir: "checkpoints" # Directory to save model checkpoints
