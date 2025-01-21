@@ -1,0 +1,8 @@
+{
+    "model_id": "BAAI/bge-multilingual-gemma2",
+    "model_output_path": "models",
+    "val_dataset": "fine_tuning_data/fake/val_dataset.json",
+    "epochs": 10,
+    "batch_size": 32,
+    "evaluation_steps": 200
+}
