@@ -33,7 +33,6 @@ import wandb
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -151,12 +150,12 @@ class Trainer:
         else:
             self.device = torch.device("cpu")  # Fallback to CPU
 
-        logger.info(f"Using device: {self.device}")
+        logging.info(f"Using device: {self.device}")
         self.setup_model()
         self.setup_wandb()
 
     def setup_model(self):
-        logger.info(f"Loading model {self.config['model']['name']}")
+        logging.info(f"Loading model {self.config['model']['name']}")
         self.tokenizer = AutoTokenizer.from_pretrained(self.config["model"]["name"])
         self.model = EmbeddingModel(
             self.config["model"]["name"], self.config["model"]["max_length"]
@@ -181,11 +180,11 @@ class Trainer:
         self.model.model.save_pretrained(output_dir)
         self.tokenizer.save_pretrained(output_dir)
 
-        logger.info(f"Saved checkpoint to {output_dir}")
+        logging.info(f"Saved checkpoint to {output_dir}")
 
     def train(self, train_data_path: str):
         # Load and prepare dataset
-        logger.info(f"Loading training data from {train_data_path}")
+        logging.info(f"Loading training data from {train_data_path}")
         with open(train_data_path) as f:
             train_data = json.load(f)
 
@@ -235,7 +234,7 @@ class Trainer:
         )
 
         # Training loop
-        logger.info("Starting training")
+        logging.info("Starting training")
         global_step = 0
         for epoch in range(self.config["training"]["num_epochs"]):
             self.model.train()
@@ -321,7 +320,7 @@ class Trainer:
 
             # Log epoch metrics
             epoch_loss = epoch_loss / len(train_dataloader)
-            logger.info(f"Epoch {epoch + 1} - Average loss: {epoch_loss:.4f}")
+            logging.info(f"Epoch {epoch + 1} - Average loss: {epoch_loss:.4f}")
             wandb.log(
                 {
                     "epoch_loss": epoch_loss,
@@ -333,7 +332,7 @@ class Trainer:
         final_output_dir = os.path.join(self.config["output"]["model_dir"], "final")
         self.model.model.save_pretrained(final_output_dir)
         self.tokenizer.save_pretrained(final_output_dir)
-        logger.info(f"Saved final model to {final_output_dir}")
+        logging.info(f"Saved final model to {final_output_dir}")
 
 
 def main():

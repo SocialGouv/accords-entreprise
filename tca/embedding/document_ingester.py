@@ -10,7 +10,6 @@ from tca.text.chunker import BaseChunker
 from tca.text.document_utils import DocumentLoader
 
 logging.config.fileConfig("logging.conf")
-logger = logging.getLogger(__name__)
 
 
 class DocumentIngester:
@@ -26,14 +25,14 @@ class DocumentIngester:
 
     def ingest_documents(self, document_paths: list[Path]) -> None:
         for document_path in document_paths:
-            logger.info('Processing document "%s"', document_path)
+            logging.info('Processing document "%s"', document_path)
             document_loaders = DocumentLoader()
             document_text = document_loaders.load_text_from_document(document_path)
             document_id = hashlib.sha256(document_text.encode()).hexdigest()
-            logger.info('Extracting chunks from document "%s"', document_path)
+            logging.info('Extracting chunks from document "%s"', document_path)
             doc_chunks = self.chunker.build_chunks(document_text)
-            logger.info(f"Number of chunks built: {len(doc_chunks)}")
-            logger.info(
+            logging.info(f"Number of chunks built: {len(doc_chunks)}")
+            logging.info(
                 'Generating embeddings for chunks of document "%s" and ingesting them in the Vector DB',
                 document_path,
             )

@@ -1,3 +1,5 @@
+import logging
+import logging.config
 import re
 from abc import ABC, abstractmethod
 
@@ -5,6 +7,8 @@ import numpy as np
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from tca.embedding.embedding_clients import BaseEmbeddingClient
+
+logging.config.fileConfig("logging.conf")
 
 
 class BaseChunker(ABC):
@@ -104,7 +108,7 @@ class SemanticChunker(BaseChunker):
                 and len(new_chunk_text) > self.min_chunk_size
             ) or len(new_chunk_text) > self.max_chunk_size:
                 new_chunk = ". ".join(chunk_candidates[:-1])
-                print(f"new_chunk {new_chunk}\n")
+                logging.info(f"new_chunk {new_chunk}\n")
                 chunks.append(new_chunk)
                 chunk_candidates = [simple_chunk]
                 current_embedding = self.embedding_client.encode_corpus([simple_chunk])

@@ -15,7 +15,6 @@ from tca.database.models import (
 from tca.embedding.embedding_clients import BaseEmbeddingClient
 
 logging.config.fileConfig("logging.conf")
-logger = logging.getLogger(__name__)
 
 
 class ThemeWithEmbedding(TypedDict):
@@ -27,15 +26,15 @@ class ThemeDBClient:
     def __init__(
         self,
         session: Session,
-        db_theme_prompt_embedding_cls: type[BaseThemeEmbedding],
+        theme_embedding_cls: type[BaseThemeEmbedding],
     ) -> None:
         self.session = session
-        self.db_theme_prompt_embedding_cls = db_theme_prompt_embedding_cls
+        self.db_theme_prompt_embedding_cls = theme_embedding_cls
 
     def ingest_themes_in_db(
         self, embedding_client: BaseEmbeddingClient, themes: pd.DataFrame
     ) -> None:
-        logger.info("Ingesting themes in the database")
+        logging.info("Ingesting themes in the database")
         prompts = themes["description"].tolist()
         all_theme_prompt_embeddings = embedding_client.encode_queries(prompts)
 
@@ -52,7 +51,7 @@ class ThemeDBClient:
                 created_at=current_timestamp,
                 updated_at=current_timestamp,
             )
-            logger.info(f"Adding theme: {theme['niveau 2']}")
+            logging.info(f"Adding theme: {theme['niveau 2']}")
             self.session.add(built_theme)
             self.session.flush()
             theme_embedding = self.db_theme_prompt_embedding_cls(

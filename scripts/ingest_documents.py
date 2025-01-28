@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import glob
+import os
 from pathlib import Path
 
 from tca.constants import DATA_FOLDER
@@ -7,14 +8,14 @@ from tca.database.document_chunk_db_client import (
     DocumentChunkDBClient,
 )
 from tca.database.models import (
-    OpenAITextEmbedding3LargeChunkEmbedding,
+    BGEMultilingualGemma2ChunkEmbedding,
 )
 from tca.database.session_manager import PostgresSessionManager
 from tca.embedding.document_ingester import DocumentIngester
 from tca.embedding.embedding_clients import (
     OpenAIEmbeddingClient,
 )
-from tca.text.chunker import DelimiterChunker
+from tca.text.chunker import RecursiveChunker
 
 INPUT_FILE_PREFIXES = [
     "T09023001809",
@@ -48,27 +49,28 @@ def main() -> None:
     postgres_session_manager.full_reset_chunks()
     session = postgres_session_manager.session
     # embedding_client = OllamaEmbeddingClient()
-    # scaleway_embedding_client = OpenAIEmbeddingClient(
-    #     model=os.environ["SCALEWAY_MODEL_NAME"],
-    #     api_key=os.environ["SCALEWAY_API_KEY"],
-    #     base_url=os.environ["SCALEWAY_BASE_URL"],
-    # )
-    openai_embedding_client = OpenAIEmbeddingClient()
+    # embedding_client = FlagLLMEmbeddingClient()
+    # embedding_client = OpenAIEmbeddingClient()
+    embedding_client = OpenAIEmbeddingClient(
+        model=os.environ["SCALEWAY_MODEL_NAME"],
+        api_key=os.environ["SCALEWAY_API_KEY"],
+        base_url=os.environ["SCALEWAY_BASE_URL"],
+    )
 
-    embedding_client = openai_embedding_client
     # chunker = SemanticChunker(
-    #     pre_chunker=DelimiterChunker(),
+    #     pre_chunker=DelimiterChunker(min_chunk_size=40),
     #     min_chunk_size=100,
-    #     similarity_threshold=0.8,
+    #     max_chunk_size=300,
+    #     similarity_threshold=0.6,
     #     embedding_client=embedding_client,
     # )
-    chunker = DelimiterChunker(min_chunk_size=40)
-    # chunker = RecursiveChunker(chunk_size=200, chunk_overlap=20)
+    # chunker = DelimiterChunker(min_chunk_size=40)
+    chunker = RecursiveChunker(chunk_size=200, chunk_overlap=20)
 
     document_chunk_db_client = DocumentChunkDBClient(
         session,
-        # db_embedding_model_cls=BGEMultilingualGemma2ChunkEmbedding,
-        db_embedding_model_cls=OpenAITextEmbedding3LargeChunkEmbedding,
+        chunk_embedding_cls=BGEMultilingualGemma2ChunkEmbedding,
+        # db_embedding_model_cls=OpenAITextEmbedding3LargeChunkEmbedding,
     )
 
     documents_folder = f"{DATA_FOLDER}/accords_entreprise_niveau2"

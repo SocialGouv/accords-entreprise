@@ -2,7 +2,8 @@ from typing import Optional
 
 import numpy as np
 import ollama
-from FlagEmbedding import FlagLLMModel
+
+# from FlagEmbedding import FlagLLMModel
 from openai import OpenAI
 
 from tca.custom_types import Embeddings
@@ -78,20 +79,20 @@ class OpenAIEmbeddingClient(BaseEmbeddingClient):
         return self._encode(queries)
 
 
-class FlagLLMEmbeddingClient(BaseEmbeddingClient):
-    def __init__(
-        self,
-        model_name="BAAI/bge-multilingual-gemma2",
-    ):
-        self.model = FlagLLMModel(
-            model_name_or_path=model_name,
-            # query_instruction_for_retrieval="Étant donné une requête de recherche sur le web, récupérer les passages pertinents qui répondent à la requête.",
-        )
+# class FlagLLMEmbeddingClient(BaseEmbeddingClient):
+#     def __init__(
+#         self,
+#         model_name="BAAI/bge-multilingual-gemma2",
+#     ):
+#         self.model = FlagLLMModel(
+#             model_name_or_path=model_name,
+#             # query_instruction_for_retrieval="Étant donné une requête de recherche sur le web, récupérer les passages pertinents qui répondent à la requête.",
+#         )
 
-    def _encode_corpus(self, documents: list[str]) -> list[Embeddings]:
-        embeddings = self.model.encode_corpus(documents)
-        return embeddings.tolist()
+#     def _encode_corpus(self, documents: list[str]) -> list[Embeddings]:
+#         embeddings = self.model.encode_corpus(documents)
+#         return embeddings.tolist()
 
-    def _encode_queries(self, queries: list[str]) -> list[Embeddings]:
-        embeddings = self.model.encode_queries(queries)
-        return embeddings.tolist()
+#     def _encode_queries(self, queries: list[str]) -> list[Embeddings]:
+#         embeddings = self.model.encode_queries(queries)
+#         return embeddings.tolist()

@@ -7,21 +7,16 @@ from typing import Any
 
 import pandas as pd
 from rapidfuzz import fuzz
-from sqlalchemy import func, select
 
 from tca.database.document_chunk_db_client import (
+    BaseDocumentChunkDBClient,
     DocumentChunkDBClient,
-)
-from tca.database.models import (
-    DocumentChunk,
-    OpenAITextEmbedding3LargeChunkEmbedding,
 )
 from tca.database.theme_db_client import ThemeWithEmbedding
 
 logging.config.fileConfig("logging.conf")
-logger = logging.getLogger(__name__)
 
-NB_CHUNKS_TO_RETRIEVE = 6
+NB_CHUNKS_TO_RETRIEVE_PER_DOC = 6
 
 
 class BaseThemeAssignmentStrategy(ABC):
@@ -83,11 +78,11 @@ class EmbeddingOnlyThemeAssignmentStrategy(BaseThemeAssignmentStrategy):
                 )
             )
             if semantic_search_results:
-                print(theme.themes[-1])
-                for result in semantic_search_results:
-                    print(
-                        f"distance: {result['distance']}\n\tchunk_text: {result['chunk'].chunk_text}"
-                    )
+                # print(theme.themes[-1])
+                # for result in semantic_search_results:
+                #     print(
+                #         f"distance: {result['distance']}\n\tchunk_text: {result['chunk'].chunk_text}"
+                #     )
                 found_match_for_themes.append(
                     {
                         "themes": theme.themes,
@@ -100,99 +95,79 @@ class EmbeddingOnlyThemeAssignmentStrategy(BaseThemeAssignmentStrategy):
         )
 
 
-class EmbeddingLLMThemeAssignmentStrategy(BaseThemeAssignmentStrategy):
+class EmbeddingLLMThemeAssignmentStrategy:
     def __init__(
         self,
         session: Any,
         llm_client: Any,
-        nb_chunks_to_retrieve: int = NB_CHUNKS_TO_RETRIEVE,
+        doc_chunk_db_client: BaseDocumentChunkDBClient,
+        min_cos_dist_threshold: float = 0.75,
+        nb_chunks_to_retrieve_per_doc: int = NB_CHUNKS_TO_RETRIEVE_PER_DOC,
     ):
         super().__init__()
         self.session = session
         self.llm_client = llm_client
-        self.nb_chunks_to_retrieve = nb_chunks_to_retrieve
+        self.doc_chunk_db_client = doc_chunk_db_client
+        self.min_cos_dist_threshold = min_cos_dist_threshold
+        self.nb_chunks_to_retrieve_per_doc = nb_chunks_to_retrieve_per_doc
+
+    def _process_chunk_results(
+        self, results: list[tuple[str, str, list[str], list[float]]]
+    ) -> dict[str, set]:
+        """
+        Processes query results and organizes them by document name prefix.
+        """
+        doc_sentences: dict[str, set] = {}
+        for _document_id, document_name, chunk_texts, _cos_distances in results:
+            document_id_match = re.match(r"[AT\d]+", document_name)
+            document_name_prefix = (
+                document_id_match.group(0) if document_id_match else "Unknown"
+            ).lower()
+            doc_sentences.setdefault(document_name_prefix, set()).update(chunk_texts)
+        return doc_sentences
 
     def find_matching_themes_for_documents(
-        self, themes_with_embeddings: list[ThemeWithEmbedding]
+        self,
+        themes_with_embeddings: list[ThemeWithEmbedding],
     ) -> pd.DataFrame:
-        doc_sentences: dict[str, set[str]] = {}
-
-        theme2_to_theme_info = {}
-        theme_descriptions: list[str] = []
+        """
+        For each theme in the list, query the database for chunks matching the theme's embeddings.
+        Then, for each document, prompt the LLM to determine if the theme is mentioned in the document.
+        """
+        theme_descriptions = []
         possible_themes = set()
+        theme2_to_theme_info = {}
+
+        doc_sentences: dict[str, set] = {}
         for theme_info in themes_with_embeddings:
             theme = theme_info["theme"]
-            query_embeddings = theme_info["embeddings"]
-            theme_n2: str = theme.themes[-1]
+            theme_embeddings = theme_info["embeddings"]
+            theme_n2 = theme.themes[-1]
             possible_themes.add(theme_n2)
             theme2_to_theme_info[theme_n2] = theme
             theme_descriptions.append(f'"{theme_n2}" : "{theme.description}"')
 
-            chunk_select_query = (
-                select(
-                    DocumentChunk,
-                    OpenAITextEmbedding3LargeChunkEmbedding.embeddings.cosine_distance(
-                        query_embeddings
-                    ).label("cos_distance"),
-                    func.row_number()
-                    .over(
-                        partition_by=DocumentChunk.document_id,
-                        order_by=OpenAITextEmbedding3LargeChunkEmbedding.embeddings.cosine_distance(
-                            query_embeddings
-                        ),
-                    )
-                    .label("row_number"),
-                )
-                .join(
-                    OpenAITextEmbedding3LargeChunkEmbedding,
-                    OpenAITextEmbedding3LargeChunkEmbedding.chunk_id
-                    == DocumentChunk.id,
-                )
-                .filter(
-                    OpenAITextEmbedding3LargeChunkEmbedding.embeddings.cosine_distance(
-                        query_embeddings
-                    )
-                    < 0.75
-                )
-                .subquery()
+            results = self.doc_chunk_db_client.query_chunks_by_theme(
+                theme_embeddings=theme_embeddings,
+                min_cos_dist_threshold=self.min_cos_dist_threshold,
+                nb_chunks_to_retrieve=self.nb_chunks_to_retrieve_per_doc,
             )
-
-            query = (
-                select(
-                    chunk_select_query.c.document_id,
-                    func.min(chunk_select_query.c.document_name).label("document_name"),
-                    func.array_agg(chunk_select_query.c.chunk_text).label(
-                        "chunk_texts"
-                    ),
-                    func.array_agg(chunk_select_query.c.cos_distance).label(
-                        "cos_distances"
-                    ),
-                )
-                .filter(chunk_select_query.c.row_number <= self.nb_chunks_to_retrieve)
-                .group_by(chunk_select_query.c.document_id)
-                .order_by(func.min(chunk_select_query.c.cos_distance))
-            )
-
-            results = self.session.execute(query).all()
 
             for _document_id, document_name, chunk_texts, _cos_distances in results:
                 document_id_match = re.match(r"[AT\d]+", document_name)
                 document_name_prefix = (
                     document_id_match.group(0) if document_id_match else "Unknown"
-                )
-                document_name_prefix = document_name_prefix.lower()
+                ).lower()
                 doc_sentences.setdefault(document_name_prefix, set()).update(
-                    f'"{text}"' for text in chunk_texts
+                    chunk_texts
                 )
 
-        themes_str: str = "\n- ".join(theme_descriptions)
+            themes_str = "\n- ".join(theme_descriptions)
 
-        results = []
+        extracted_results = []
         for document_name_prefix, sentences in doc_sentences.items():
-            print(f"Document: {document_name_prefix}")
-            sentences_str: str = "\n- ".join(sentences)
-
-            prompt: str = f"""
+            sentences_str = "\n- ".join(f'"{text}"' for text in sentences)
+            prompt = f"""
 Je souhaite déterminer si les thèmes suivants sont abordés explicitement dans un accord d'entreprise.
 Les thèmes sont les suivants, avec la forme "theme : description du thème" :
 - {themes_str}
@@ -206,23 +181,19 @@ Retourne le résultat sous forme de JSON sans balises de bloc de code avec le fo
 
 ["theme1", "theme2", ...]
             """
-            print(f"prompt {prompt}")
-            response: str = self.llm_client.generate_text(prompt)
-            response = response.strip()
+            response = self.llm_client.generate_text(prompt).strip()
             if response.startswith("```json"):
-                logging.warning(f"{document_name_prefix}: ```json DETECTED")
                 response = response[7:-3].strip()
-            logging.info(f"Themes ({document_name_prefix}): {response}")
             response_obj = json.loads(response)
             for theme_n2 in response_obj:
                 best_matching_theme = max(
                     possible_themes, key=lambda t: fuzz.ratio(theme_n2, t)
                 )
-                results.append(
+                extracted_results.append(
                     {
                         "Document": document_name_prefix,
                         "Thème n1": theme2_to_theme_info[best_matching_theme].themes[0],
                         "Thème n2": theme2_to_theme_info[best_matching_theme].themes[1],
                     }
                 )
-        return pd.DataFrame(results)
+        return pd.DataFrame(extracted_results)

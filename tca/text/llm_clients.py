@@ -15,7 +15,6 @@ from tca.custom_types import (
 )
 
 logging.config.fileConfig("logging.conf")
-logger = logging.getLogger(__name__)
 
 
 class LLMAPIClient(ABC):
