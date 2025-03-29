@@ -3668,6 +3668,7 @@ files = [
     {file = "psycopg2-2.9.10-cp311-cp311-win_amd64.whl", hash = "sha256:0435034157049f6846e95103bd8f5a668788dd913a7c30162ca9503fdf542cb4"},
     {file = "psycopg2-2.9.10-cp312-cp312-win32.whl", hash = "sha256:65a63d7ab0e067e2cdb3cf266de39663203d38d6a8ed97f5ca0cb315c73fe067"},
     {file = "psycopg2-2.9.10-cp312-cp312-win_amd64.whl", hash = "sha256:4a579d6243da40a7b3182e0430493dbd55950c493d8c68f4eec0b302f6bbf20e"},
+    {file = "psycopg2-2.9.10-cp313-cp313-win_amd64.whl", hash = "sha256:91fd603a2155da8d0cfcdbf8ab24a2d54bca72795b90d2a3ed2b6da8d979dee2"},
     {file = "psycopg2-2.9.10-cp39-cp39-win32.whl", hash = "sha256:9d5b3b94b79a844a986d029eee38998232451119ad653aea42bb9220a8c5066b"},
     {file = "psycopg2-2.9.10-cp39-cp39-win_amd64.whl", hash = "sha256:88138c8dedcbfa96408023ea2b0c369eda40fe5d75002c0964c78f46f11fa442"},
     {file = "psycopg2-2.9.10.tar.gz", hash = "sha256:12ec0b40b0273f95296233e8750441339298e6a572f7039da5b260e3c8b60e11"},
@@ -4648,13 +4649,13 @@ test = ["Cython", "array-api-strict (>=2.0,<2.1.1)", "asv", "gmpy2", "hypothesis
 
 [[package]]
 name = "sentence-transformers"
-version = "3.3.1"
-description = "State-of-the-Art Text Embeddings"
+version = "4.0.1"
+description = "Embeddings, Retrieval, and Reranking"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "sentence_transformers-3.3.1-py3-none-any.whl", hash = "sha256:abffcc79dab37b7d18d21a26d5914223dd42239cfe18cb5e111c66c54b658ae7"},
-    {file = "sentence_transformers-3.3.1.tar.gz", hash = "sha256:9635dbfb11c6b01d036b9cfcee29f7716ab64cf2407ad9f403a2e607da2ac48b"},
+    {file = "sentence_transformers-4.0.1-py3-none-any.whl", hash = "sha256:bb037b22d2766b94fa60f5c4fb9a876679b2311b509ae266259434d6de0875fd"},
+    {file = "sentence_transformers-4.0.1.tar.gz", hash = "sha256:0c0080a08dc5670b17c0c88791d15b06c0fa1a598d26714732760d1832bc7d88"},
 ]
 
 [package.dependencies]
@@ -4665,6 +4666,7 @@ scipy = "*"
 torch = ">=1.11.0"
 tqdm = "*"
 transformers = ">=4.41.0,<5.0.0"
+typing_extensions = ">=4.5.0"
 
 [package.extras]
 dev = ["accelerate (>=0.20.3)", "datasets", "peft", "pre-commit", "pytest", "pytest-cov"]
@@ -5818,4 +5820,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "56d7f794d3496feba7142d5bb3b9578adf25253776e93862f7e90ecf2fee1d1a"
+content-hash = "7720bbde54e9355eb5910c37236bf3eda94583fa143a673f1c6fb603071269fc"
