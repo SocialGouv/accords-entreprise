@@ -31,7 +31,7 @@ rapidfuzz = "^3.11.0"
 transformers = {extras = ["torch"], version = "^4.48.0"}
 datasets = "^3.2.0"
 sentence-transformers = "^3.3.1"
-torch = "^2.5.1"
+torch = "^2.6.0"
 bitsandbytes = "^0.41.1"
 wandb = "^0.16.3"
 llama-index = "^0.12.11"
